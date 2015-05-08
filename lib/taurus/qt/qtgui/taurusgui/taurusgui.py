@@ -200,7 +200,6 @@ class DockWidgetPanel(Qt.QDockWidget, TaurusBaseWidget):
     def closeEvent(self, event):
         Qt.QDockWidget.closeEvent(self, event)      
         TaurusBaseWidget.closeEvent(self, event)
-        self.widget().closeEvent(event)
 
 
 class TaurusGui(TaurusMainWindow):
@@ -321,6 +320,7 @@ class TaurusGui(TaurusMainWindow):
         TaurusMainWindow.closeEvent(self, event)
         for n, panel in self.__panels.items():
             panel.closeEvent(event)
+            panel.widget().closeEvent(event)
             if not event.isAccepted():
                 result = Qt.QMessageBox.question(
                     self, 'Closing error',
