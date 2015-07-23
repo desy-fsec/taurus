@@ -297,11 +297,11 @@ class TaurusGui(TaurusMainWindow):
         Qt.qApp.SDM = SharedDataManager(self)
 
         self.__initPanelsMenu()
-        self.__initViewMenu()
         self.__initQuickAccessToolBar()
         self.__initJorgBar()
         self.__initSharedDataConnections()
         self.__initToolsMenu()
+        self.__initViewMenu()
         self.__initPanelsToolBar()
 
         self.loadConfiguration(confname)
@@ -727,6 +727,8 @@ class TaurusGui(TaurusMainWindow):
                 # update the temporally external applications
                 for name in dlg.getAll2():
                     self.__permanent_ext_apps.append(str(name))
+                    if name in self.__external_app:
+                        self.__external_app.pop(str(name))
 
                 for name in dlg.getAll1():
                     self.unregisterConfigurableItem("_extApp[%s]" % str(name),
