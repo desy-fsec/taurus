@@ -123,7 +123,7 @@ class DynamicPlotManager(Qt.QObject, TaurusBaseComponent):
             return
         if expconf['ActiveMntGrp'] not in expconf['MntGrpConfigs'].keys():
             self.warning(
-                'ActiveMntGrp '%s' not in %s' %
+                "ActiveMntGrp '%s' not in %s" %
                 (expconf['ActiveMntGrp'], expconf['MntGrpConfigs'].keys()))
             return
 
