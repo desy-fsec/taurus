@@ -317,6 +317,26 @@ class JSONCodec(Codec):
         if len(data[0]): format += '_%s' % data[0]
         # make it compact by default
         kwargs['separators'] = kwargs.get('separators', (',',':'))
+        if len(data[1]) == 3:
+            try:
+                for keyd in data[1]['data'].keys():
+                    li = 0
+                    if type(data[1]['data'][keyd]) is numpy.ndarray:
+                        data[1]['data'][keyd] = list(data[1]['data'][keyd])
+                        for i in range(0, len(data[1]['data'][keyd])):
+                            if type(data[1]['data'][keyd][i]) in [
+                                    numpy.int8, numpy.int16, numpy.int32,
+                                    numpy.int64, numpy.uint8, numpy.uint16,
+                                    numpy.uint32, numpy.uint64]:
+                                data[1]['data'][keyd][i] = int(
+                                    data[1]['data'][keyd][i])
+                            elif type(data[1]['data'][keyd][i]) in [
+                                      numpy.float16, numpy.float32,
+                                      numpy.float64]:
+                                data[1]['data'][keyd][i] = float(
+                                    data[1]['data'][keyd][i])
+            except:
+                pass
         return format, json.dumps(data[1], *args, **kwargs)
     
     def decode(self, data, *args, **kwargs):
