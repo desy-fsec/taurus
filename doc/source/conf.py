@@ -25,8 +25,8 @@
 ##############################################################################
 import sys
 import os
-
 import sphinx_rtd_theme
+
 
 # declare some useful absolute paths
 _this_dir = os.path.dirname(os.path.abspath(__file__))
