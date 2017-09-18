@@ -47,6 +47,8 @@ from object import Object
 from wrap import wraps
 from excepthook import BaseExceptHook
 
+import socket
+
 TRACE = 5
 logging.addLevelName(TRACE, "TRACE")
 
@@ -706,22 +708,11 @@ class Logger(Object):
                         out += '<could not find suitable string representation>'
         return out
 
-    def loggingtofile(self, msg, mode, logging_path, *args, **kw):
+    def loggingtofile(self, msg, logging_path, *args, **kw):
 
-        file_name = logging_path + "/spock_session.log"
-
-        if mode:
-            if os.path.isfile(file_name):
-                try:
-                    os.system("vrsn -s %s" % file_name)
-                except:
-                    backup_logname = file_name+'~'
-                    if os.path.isfile(backup_logname):
-                        os.remove(backup_logname)
-                    os.rename(file_name,backup_logname)
-            logging_file = open(file_name, 'w')
-        else:
-            logging_file = open(file_name, 'a')
+        file_name = logging_path + "/spock_session_" + socket.gethostname() + ".log"
+        
+        logging_file = open(file_name, 'a')
         logging_file.write('\n')
         logging_file.write(msg)
         logging_file.close()
