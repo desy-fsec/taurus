@@ -49,6 +49,8 @@ from object import Object
 from wrap import wraps
 from excepthook import BaseExceptHook
 
+import socket
+
 # ------------------------------------------------------------------------------
 # TODO: substitute this ugly hack (below) by a more general mechanism
 from collections import defaultdict
@@ -792,6 +794,15 @@ class Logger(Object):
                     except:
                         out += '<could not find suitable string representation>'
         return out
+
+    def loggingtofile(self, msg, logging_path, *args, **kw):
+
+        file_name = logging_path + "/spock_session_" + socket.gethostname() + ".log"
+
+        logging_file = open(file_name, 'a')
+        logging_file.write('\n')
+        logging_file.write(msg)
+        logging_file.close()
 
     def log(self, level, msg, *args, **kw):
         """Record a log message in this object's logger. Accepted *args* and
