@@ -38,7 +38,7 @@ import weakref
 import re
 from taurus.external.qt import Qt
 import taurus.core
-from taurus.core import DataType, DataFormat
+from taurus.core import DataType, DataFormat, TaurusEventType
 
 from taurus.core.taurusbasetypes import TaurusElementType
 from taurus.qt.qtcore.mimetypes import TAURUS_ATTR_MIME_TYPE, TAURUS_DEV_MIME_TYPE, TAURUS_MODEL_MIME_TYPE
@@ -91,7 +91,7 @@ class DefaultLabelWidget(TaurusLabel):
         try:
             config = self.taurusValueBuddy().getLabelConfig()
         except Exception:
-            config = 'label'
+            config = '{attr.label}'
         elementtype = self.taurusValueBuddy().getModelType()
         fullname = self.taurusValueBuddy().getModelObj().getFullName()
         if elementtype == TaurusElementType.Attribute:
@@ -110,11 +110,12 @@ class DefaultLabelWidget(TaurusLabel):
     _BCK_COMPAT_TAGS = {'<attr_name>': '{attr.name}',
                         '<attr_fullname>': '{attr.fullname}',
                         '<dev_alias>': '{dev.name}',
-                        '<dev_name>': '{dev_name}',
+                        '<dev_name>': '{dev.name}',
                         '<dev_fullname>': '{dev.fullname}',
                         }
 
     def getDisplayValue(self, cache=True, fragmentName=None):
+        """Reimplementation of getDisplayValue"""
         if self.modelObj is None or fragmentName is None:
             return self.getNoneValue()
         # support bck-compat tags
@@ -122,9 +123,8 @@ class DefaultLabelWidget(TaurusLabel):
             new = self._BCK_COMPAT_TAGS.get(old, '{attr.%s}' % old)
             self.deprecated(dep=old, alt=new)
             fragmentName = fragmentName.replace(old, new)
-        attr = self.getModelObj()
-        dev = attr.getParent()
-        return fragmentName.format(dev=dev, attr=attr)
+
+        return TaurusLabel.displayValue(self, fragmentName)
 
     def sizeHint(self):
         return Qt.QSize(Qt.QLabel.sizeHint(self).width(), 18)
@@ -142,9 +142,11 @@ class DefaultLabelWidget(TaurusLabel):
             r_action.setEnabled(self.taurusValueBuddy().hasPendingOperations())
         if self.taurusValueBuddy().isModifiableByUser():
             menu.addAction("Change label",
-                           self.taurusValueBuddy().onChangeLabelConfig)
+                           self.taurusValueBuddy()._onChangeLabelText)
             menu.addAction("Change Read Widget",
                            self.taurusValueBuddy().onChangeReadWidget)
+            menu.addAction("Set Formatter",
+                           self.taurusValueBuddy().onSetFormatter)
             cw_action = menu.addAction(
                 "Change Write Widget", self.taurusValueBuddy().onChangeWriteWidget)
             # disable the action if the taurusValue is readonly
@@ -310,6 +312,7 @@ class TaurusValue(Qt.QWidget, TaurusBaseWidget):
         self.call__init__wo_kw(Qt.QWidget, parent)
         self.call__init__(TaurusBaseWidget, name, designMode=designMode)
 
+        self.__error = False
         self.__modelClass = None
         self._designMode = designMode
 
@@ -431,6 +434,13 @@ class TaurusValue(Qt.QWidget, TaurusBaseWidget):
 
         # do the base class stuff too
         Qt.QWidget.setParent(self, parent)
+
+    def onSetFormatter(self):
+        """
+        Reimplemented to call onSetFormatter of the read widget (if provided)
+        """
+        if hasattr(self._readWidget, 'onSetFormatter'):
+            return self._readWidget.onSetFormatter()
 
     def getAllowWrite(self):
         return self._allowWrite
@@ -626,8 +636,13 @@ class TaurusValue(Qt.QWidget, TaurusBaseWidget):
         return self._customWidgetMap
 
     def onChangeLabelConfig(self):
+        self.deprecated(msg="onChangeLabelConfig is deprecated", rel="Jan2018")
+        self._onChangeLabelText()
+
+    def _onChangeLabelText(self):
         keys = ['{attr.label}', '{attr.name}', '{attr.fullname}', '{dev.name}',
                 '{dev.fullname}']
+
         try:
             current = keys.index(self.labelConfig)
         except:
@@ -642,7 +657,7 @@ class TaurusValue(Qt.QWidget, TaurusBaseWidget):
         labelConfig, ok = Qt.QInputDialog.getItem(self, 'Change Label', msg,
                                                   keys, current, True)
         if ok:
-            self.labelConfig = str(labelConfig)
+            self.labelConfig = labelConfig
 
     def onChangeReadWidget(self):
         classnames = ['None', 'Auto'] + \
@@ -1154,13 +1169,19 @@ class TaurusValue(Qt.QWidget, TaurusBaseWidget):
         """Reimplemented from :meth:`TaurusBaseWidget.handleEvent`
         to update subwidgets on config events
         """
-        if evt_type == taurus.core.taurusbasetypes.TaurusEventType.Config and not self._designMode:
+        if self._designMode:
+            return
+
+        if self.__error or evt_type == TaurusEventType.Config:
             self.updateCustomWidget()
             self.updateLabelWidget()
             self.updateReadWidget()
             self.updateWriteWidget()
             self.updateUnitsWidget()
             self.updateExtraWidget()
+
+        # set/unset the error flag
+        self.__error = (evt_type == TaurusEventType.Error)
 
     def isValueChangedByUser(self):
         try:
@@ -1215,7 +1236,29 @@ class TaurusValue(Qt.QWidget, TaurusBaseWidget):
 
     @Qt.pyqtSlot('QString')
     def setLabelConfig(self, config):
+        """Sets fragment configuration to the label widget.
+
+        :param config: fragment
+        :type config: str
+        """
         self._labelConfig = config
+        # backwards compatibility: this method used to work for setting
+        # an arbitrary text to the label widget
+        try:
+            self.getModelFragmentObj(config)
+            self._labelWidget._permanentText = None
+        except Exception:
+            try:
+                for old in re.findall('<.+?>', config):
+                    new = self._BCK_COMPAT_TAGS.get(old, old)
+                    self.deprecated(dep=old, alt=new)
+                    config = config.replace(old, new)
+
+                self._labelWidget.setText(config)
+            except:
+                self.debug("Setting permanent text to the label widget failed")
+            return
+
         self.updateLabelWidget()
 
     def resetLabelConfig(self):
