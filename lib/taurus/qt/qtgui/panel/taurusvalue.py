@@ -35,6 +35,9 @@ __all__ = ["TaurusValue", "TaurusValuesFrame", "DefaultTaurusValueCheckBox",
 
 __docformat__ = 'restructuredtext'
 
+from future.utils import string_types
+from future.builtins import str
+
 import weakref
 import re
 from taurus.external.qt import Qt
@@ -99,13 +102,8 @@ class DefaultLabelWidget(TaurusLabel):
             config = self.taurusValueBuddy().getLabelConfig()
             TaurusLabel.setModel(self, '%s#%s' % (fullname, config))
         elif elementtype == TaurusElementType.Device:
-            # @TODO: tango-centric!
-            # TaurusLabel.setModel(self, '%s/state#dev_alias'%fullname)
-            #
-            # The following is a workaround to avoid tango-centricity, but
-            # it has the drawback that the model is not set (e.g., no tooltip)
             devName = self.taurusValueBuddy().getModelObj().getSimpleName()
-            TaurusLabel.setModel(self, None)
+            TaurusLabel.setModel(self, model)
             self.setText(devName)
 
     _BCK_COMPAT_TAGS = {'<attr_name>': '{attr.name}',
@@ -160,16 +158,18 @@ class DefaultLabelWidget(TaurusLabel):
         event.accept()
 
     def getModelMimeData(self):
-        '''reimplemented to use the taurusValueBuddy model instead of its own model'''
+        """
+        reimplemented to use the taurusValueBuddy model instead of its own
+        model
+        """
         mimeData = TaurusLabel.getModelMimeData(self)
-        mimeData.setData(TAURUS_MODEL_MIME_TYPE,
-                         self.taurusValueBuddy().getModelName())
+        _modelname = str(self.taurusValueBuddy().getModelName())
+        modelname = _modelname.encode(encoding='utf8')
+        mimeData.setData(TAURUS_MODEL_MIME_TYPE, modelname)
         if self.taurusValueBuddy().getModelType() == TaurusElementType.Device:
-            mimeData.setData(TAURUS_DEV_MIME_TYPE,
-                             self.taurusValueBuddy().getModelName())
+            mimeData.setData(TAURUS_DEV_MIME_TYPE, modelname)
         elif self.taurusValueBuddy().getModelType() == TaurusElementType.Attribute:
-            mimeData.setData(TAURUS_ATTR_MIME_TYPE,
-                             self.taurusValueBuddy().getModelName())
+            mimeData.setData(TAURUS_ATTR_MIME_TYPE, modelname)
         return mimeData
 
     @classmethod
@@ -202,6 +202,15 @@ class DefaultReadWidgetLabel(ExpandingLabel):
 class CenteredLed(TaurusLed):
     '''just a centered TaurusLed'''
     DefaultAlignment = Qt.Qt.AlignHCenter | Qt.Qt.AlignVCenter
+
+
+class UnitLessLineEdit(TaurusValueLineEdit):
+    """A customised TaurusValueLineEdit that always shows the magnitude"""
+    def setModel(self, model):
+        if model is None or model == '':
+            return TaurusValueLineEdit.setModel(self, None)
+        return TaurusValueLineEdit.setModel(self, model + "#wvalue.magnitude")
+
 
 
 class DefaultUnitsWidget(TaurusLabel):
@@ -442,16 +451,21 @@ class TaurusValue(Qt.QWidget, TaurusBaseWidget):
         """
         Reimplemented to call onSetFormatter of the read widget (if provided)
         """
-        if hasattr(self._readWidget, 'onSetFormatter'):
-            return self._readWidget.onSetFormatter()
+        rw = self.readWidget(followCompact=True)
+        if hasattr(rw, 'onSetFormatter'):
+            return rw.onSetFormatter()
 
     def setFormat(self, format):
         """
         Reimplemented to call setFormat of the read widget (if provided)
         """
         TaurusBaseWidget.setFormat(self, format)
-        if hasattr(getattr(self, '_readWidget', None), 'setFormat'):
-            return self._readWidget.setFormat(format)
+        try:
+            rw = self.readWidget(followCompact=True)
+        except AttributeError:
+            return
+        if hasattr(rw, 'setFormat'):
+            rw.setFormat(format)
 
     def getAllowWrite(self):
         return self._allowWrite
@@ -582,20 +596,20 @@ class TaurusValue(Qt.QWidget, TaurusBaseWidget):
         modelobj = self.getModelObj()
         if modelobj is None:
             if returnAll:
-                return [TaurusValueLineEdit]
+                return [UnitLessLineEdit]
             else:
-                return TaurusValueLineEdit
+                return UnitLessLineEdit
         modelType = modelobj.getType()
         if modelobj.data_format == DataFormat._0D:
             if modelType == DataType.Boolean:
                 result = [DefaultTaurusValueCheckBox, TaurusValueLineEdit]
             else:
-                result = [TaurusValueLineEdit,
+                result = [UnitLessLineEdit,
                           TaurusValueSpinBox, TaurusWheelEdit]
         elif modelobj.data_format == DataFormat._1D:
             if modelType in (DataType.Float, DataType.Integer):
                 result = [TaurusArrayEditorButton,
-                          TaurusValuesTableButton_W, TaurusValueLineEdit]
+                          TaurusValuesTableButton_W, UnitLessLineEdit]
             else:
                 result = [TaurusValuesTableButton_W, TaurusValueLineEdit]
         elif modelobj.data_format == DataFormat._2D:
@@ -831,7 +845,7 @@ class TaurusValue(Qt.QWidget, TaurusBaseWidget):
         try:
             klass = self.readWidgetClassFactory(self.readWidgetClassID)
             self._readWidget = self._newSubwidget(self._readWidget, klass)
-        except Exception, e:
+        except Exception as e:
             self._destroyWidget(self._readWidget)
             self._readWidget = Qt.QLabel('[Error]')
             msg = 'Error creating read widget:\n' + str(e)
@@ -1084,12 +1098,28 @@ class TaurusValue(Qt.QWidget, TaurusBaseWidget):
         self.extraWidgetClassID = 'Auto'
 
     def setCompact(self, compact):
+
+        # don't do anything if it is already done
         if compact == self._compact:
             return
+
+        #do not switch to compact mode if the write widget is None
+        if compact and self.writeWidget() is None:
+            self.debug('No write widget. Ignoring setCompact(True)')
+            return
+
+        # Backup the current RW format
+        rw = self.readWidget(followCompact=True)
+        format = rw.getFormat()
+
         self._compact = compact
         if self.getModel():
             self.updateReadWidget()
             self.updateWriteWidget()
+
+        # Apply the format to the new RW
+        rw = self.readWidget(followCompact=True)
+        rw.setFormat(format)
 
     def isCompact(self):
         return self._compact
@@ -1129,7 +1159,8 @@ class TaurusValue(Qt.QWidget, TaurusBaseWidget):
         for key in ('LabelWidget', 'ReadWidget', 'WriteWidget', 'UnitsWidget', 'CustomWidget', 'ExtraWidget'):
             # calls self.getLabelWidgetClass, self.getReadWidgetClass,...
             classID = getattr(self, 'get%sClass' % key)()
-            if isinstance(classID, (str, Qt.QString)) or allowUnpickable:
+            if (isinstance(classID, string_types)
+                    or allowUnpickable):
                 #configdict[key] = classID
                 configdict[key] = {'classid': classID}
                 widget = getattr(self, key[0].lower() + key[1:])()
@@ -1156,7 +1187,7 @@ class TaurusValue(Qt.QWidget, TaurusBaseWidget):
                 widget_configdict = configdict[key]
                 getattr(self, 'set%sClass' % key)(
                     widget_configdict.get('classid', None))
-                if widget_configdict.has_key('delegate'):
+                if 'delegate' in widget_configdict:
                     widget = getattr(self, key[0].lower() + key[1:])()
                     if isinstance(widget, BaseConfigurableClass):
                         widget.applyConfig(widget_configdict[

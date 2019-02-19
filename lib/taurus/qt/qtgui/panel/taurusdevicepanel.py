@@ -27,12 +27,13 @@
 TaurusDevicePanel.py:
 """
 
-__all__ = ["TaurusDevicePanel", "TaurusDevPanel"]
-
-__docformat__ = 'restructuredtext'
+from builtins import str
+from future.utils import string_types
 
 import re
 import traceback
+
+from future.utils import string_types
 
 import taurus
 from taurus.external.qt import Qt
@@ -43,11 +44,16 @@ from taurus.core.taurusattribute import TaurusAttribute
 from taurus.core.taurusdevice import TaurusDevice
 from taurus.qt.qtgui.container import TaurusWidget, TaurusMainWindow
 from taurus.qt.qtgui.display import TaurusLabel
-from taurus.qt.qtgui.display import TaurusLed
 from taurus.qt.qtgui.panel.taurusform import TaurusForm
 from taurus.qt.qtgui.panel.taurusform import TaurusCommandsForm
 from taurus.qt.qtgui.util.ui import UILoadable
 from taurus.qt.qtgui.icon import getCachedPixmap
+
+
+__all__ = ["TaurusDevicePanel", "TaurusDevPanel"]
+
+__docformat__ = 'restructuredtext'
+
 
 ###############################################################################
 # TaurusDevicePanel (from Vacca)
@@ -81,7 +87,7 @@ def get_regexp_dict(dct, key, default=None):  # TODO: Tango-centric
     if default is not None:
         return default
     else:
-        raise Exception('KeyNotFound:%s' % k)
+        raise Exception('KeyNotFound:%s' % key)
 
 
 def get_eqtype(dev):  # TODO: Tango-centric
@@ -98,7 +104,7 @@ def str_to_filter(seq):  # TODO: Tango-centric
         f = eval(seq)
     except:
         f = seq
-    if isinstance(f, basestring):
+    if isinstance(f, string_types):
         return {'.*': [f]}
     elif isinstance(f, list):
         return {'.*': f}
@@ -217,7 +223,7 @@ class TaurusDevicePanel(TaurusWidget):
         self._stateframe.layout().addWidget(Qt.QLabel('State'), 0, 0, Qt.Qt.AlignCenter)
         self._statelabel = TaurusLabel(self._stateframe)
         self._statelabel.setMinimumWidth(100)
-        self._statelabel.setBgRole('value')
+        self._statelabel.setBgRole('rvalue')
         self._stateframe.layout().addWidget(self._statelabel, 0, 1, Qt.Qt.AlignCenter)
 
         self._statusframe = Qt.QScrollArea(self)
@@ -271,7 +277,7 @@ class TaurusDevicePanel(TaurusWidget):
 
     def loadConfigFile(self, ifile=None):
         self.info('In TaurusDevicePanel.loadConfigFile(%s)' % ifile)
-        if isinstance(ifile, file) or isinstance(ifile, str) and not ifile.endswith('.py'):
+        if isinstance(ifile, file) or isinstance(ifile, string_types) and not ifile.endswith('.py'):
             TaurusWidget.loadConfigFile(self, ifile)
         else:
             from imp import load_source
@@ -353,7 +359,7 @@ class TaurusDevicePanel(TaurusWidget):
                 filters = get_regexp_dict(
                     TaurusDevicePanel._attribute_filter, model, ['.*'])
                 if hasattr(filters, 'keys'):
-                    filters = filters.items()  # Dictionary!
+                    filters = list(filters.items())  # Dictionary!
                 if filters and isinstance(filters[0], (list, tuple)):  # Mapping
                     self._attrs = []
                     for tab, attrs in filters:
@@ -472,7 +478,7 @@ class TaurusDevicePanel(TaurusWidget):
                 form.setViewFilters([lambda c: str(c.cmd_name).lower() not in (
                     'state', 'status') and any(searchCl(s[0], str(c.cmd_name)) for s in params)])
                 form.setDefaultParameters(dict((k, v) for k, v in (
-                    params if not hasattr(params, 'items') else params.items()) if v))
+                    params if not hasattr(params, 'items') else list(params.items())) if v))
             for wid in form._cmdWidgets:
                 if not hasattr(wid, 'getCommand') or not hasattr(wid, 'setDangerMessage'):
                     continue
@@ -499,12 +505,12 @@ def filterNonExported(obj):
 
 @UILoadable(with_ui='_ui')
 class TaurusDevPanel(TaurusMainWindow):
-    '''
+    """
     TaurusDevPanel is a Taurus Application inspired in Jive and Atk Panel.
 
     It Provides a Device selector and several dockWidgets for interacting and
     displaying information from the selected device.
-    '''
+    """
 
     def __init__(self, parent=None, designMode=False):
         TaurusMainWindow.__init__(self, parent, designMode=designMode)
@@ -521,12 +527,6 @@ class TaurusDevPanel(TaurusMainWindow):
             [TaurusElementType.Member])  # TODO: Tango-centric
         # self.deviceTree.insertFilter(filterNonExported)
         self.setCentralWidget(self.deviceTree)
-
-        # needed because of a limitation in when using the useParentModel
-        # property from designer and taurus parents are not the same as Qt
-        # Parents
-        self._ui.taurusAttrForm.recheckTaurusParent()
-        self._ui.taurusCommandsForm.recheckTaurusParent()
 
         # register subwidgets for configuration purposes
         # self.registerConfigDelegate(self.taurusAttrForm)
@@ -545,17 +545,15 @@ class TaurusDevPanel(TaurusMainWindow):
             self.splashScreen().finish(self)
 
     def createActions(self):
-        '''create actions '''
+        """create actions"""
         # View Menu
         self.showAttrAction = self.viewMenu.addAction(
             self._ui.attrDW.toggleViewAction())
         self.showCommandsAction = self.viewMenu.addAction(
             self._ui.commandsDW.toggleViewAction())
-        self.showTrendAction = self.viewMenu.addAction(
-            self._ui.trendDW.toggleViewAction())
 
     def setTangoHost(self, host):
-        '''extended from :class:setTangoHost'''
+        """extended from :class:setTangoHost"""
         TaurusMainWindow.setTangoHost(self, host)
         self.deviceTree.setModel(host)
         # self.deviceTree.insertFilter(filterNonExported)
@@ -582,6 +580,7 @@ class TaurusDevPanel(TaurusMainWindow):
         self.setDevice(devname)
 
     def setDevice(self, devname):
+        """set the device to be shown by the commands and attr forms"""
         # try to connect with the device
         self.setModel(devname)
         dev = self.getModelObj()
@@ -600,6 +599,12 @@ class TaurusDevPanel(TaurusMainWindow):
             self.info(msg)
             Qt.QMessageBox.warning(self, "Device unreachable", msg)
             self.setModel('')
+
+    def setModel(self, name):
+        """Reimplemented to delegate model to the commands and attrs forms"""
+        TaurusMainWindow.setModel(self, name)
+        self._ui.taurusAttrForm.setModel(name)
+        self._ui.taurusCommandsForm.setModel(name)
 
     @classmethod
     def getQtDesignerPluginInfo(cls):
