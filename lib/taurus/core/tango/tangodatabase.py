@@ -34,7 +34,6 @@ from builtins import object
 import collections
 
 import os
-import socket
 import weakref
 
 from PyTango import (Database, DeviceProxy, DevFailed, ApiUtil)
@@ -43,6 +42,7 @@ from taurus.core.taurusbasetypes import TaurusDevState, TaurusEventType
 from taurus.core.taurusauthority import TaurusAuthority
 from taurus.core.util.containers import CaselessDict
 from taurus.core.util.log import taurus4_deprecation
+from taurus.core.util.fqdn import fqdn_no_alias
 
 
 __all__ = ["TangoInfo", "TangoAttrInfo", "TangoDevInfo", "TangoServInfo",
@@ -643,21 +643,22 @@ def get_env_var(env_var_name):
     if not os.path.exists(fname):
         return None
 
-    for line in file(fname):
-        strippedline = line.split('#', 1)[0].strip()
+    with open(fname) as f:
+        for line in f:
+            strippedline = line.split('#', 1)[0].strip()
 
-        if not strippedline:
-            # empty line
-            continue
+            if not strippedline:
+                # empty line
+                continue
 
-        tup = strippedline.split('=', 1)
-        if len(tup) != 2:
-            # illegal line!
-            continue
+            tup = strippedline.split('=', 1)
+            if len(tup) != 2:
+                # illegal line!
+                continue
 
-        key, val = list(map(str.strip, tup))
-        if key == env_var_name:
-            return val
+            key, val = list(map(str.strip, tup))
+            if key == env_var_name:
+                return val
 
 
 class TangoAuthority(TaurusAuthority):
@@ -678,7 +679,7 @@ class TangoAuthority(TaurusAuthority):
                 warning("Error getting default Tango host")
 
         # Set host to fqdn
-        host = socket.getfqdn(host)
+        host = fqdn_no_alias(host)
 
         self.dbObj = Database(host, port)
         self._dbProxy = None

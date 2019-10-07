@@ -47,7 +47,7 @@ from taurus.core.tauruslistener import TaurusListener, TaurusExceptionListener
 from taurus.core.taurusoperation import WriteAttrOperation
 from taurus.core.util.eventfilters import filterEvent
 from taurus.core.util.log import deprecation_decorator
-from taurus.qt.qtcore.util.signal import baseSignal
+from taurus.qt.qtcore.util import baseSignal
 from taurus.qt.qtcore.configuration import BaseConfigurableClass
 from taurus.qt.qtcore.mimetypes import TAURUS_ATTR_MIME_TYPE
 from taurus.qt.qtcore.mimetypes import TAURUS_DEV_MIME_TYPE
@@ -110,7 +110,7 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
 
     taurusEvent = baseSignal('taurusEvent', object, object, object)
 
-    def __init__(self, name='', parent=None, designMode=False):
+    def __init__(self, name='', parent=None, designMode=False, **kwargs):
         """Initialization of TaurusBaseComponent"""
         self.modelObj = None
         self.modelName = ''
@@ -168,6 +168,12 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
         self.registerConfigProperty(self.getFormat, self.setFormat,
                                     'formatter')
         self.resetModelInConfig()
+
+        # connect taurusEvent signal to filterEvent
+        try:
+            self.taurusEvent.connect(self.filterEvent)
+        except Exception as e:
+            self.warning('Could not connect taurusEvent signal: %r', e)
 
     @deprecation_decorator(rel='4.0')
     def getSignaller(self):
@@ -920,15 +926,11 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
 
     def preAttach(self):
         """Called inside self.attach() before actual attach is performed.
-        Default implementation just emits a signal.
+        Default implementation does nothing.
 
         Override when necessary.
         """
-        try:
-            self.taurusEvent.connect(self.filterEvent)
-        except:
-            # self.error("In %s.preAttach() ... failed!" % str(type(self)))
-            pass
+        pass
 
     def postAttach(self):
         """Called inside self.attach() after actual attach is performed.
@@ -940,15 +942,11 @@ class TaurusBaseComponent(TaurusListener, BaseConfigurableClass):
 
     def preDetach(self):
         """Called inside self.detach() before actual deattach is performed.
-        Default implementation just disconnects a signal.
+        Default implementation does nothing.
 
         Override when necessary.
         """
-        try:
-            self.taurusEvent.disconnect(self.filterEvent)
-        except:
-            # self.error("In %s.preDetach() ... failed!" % str(type(self)))
-            pass
+        pass
 
     def postDetach(self):
         """Called inside self.detach() after actual deattach is performed.
@@ -1337,7 +1335,7 @@ class TaurusBaseWidget(TaurusBaseComponent):
 
     _dragEnabled = False
 
-    def __init__(self, name='', parent=None, designMode=False):
+    def __init__(self, name='', parent=None, designMode=False, **kwargs):
         self._disconnect_on_hide = False
         self._supportedMimeTypes = None
         self._autoTooltip = True
@@ -1758,7 +1756,7 @@ class TaurusBaseWidget(TaurusBaseComponent):
         formats = mimeData.formats()
         for mtype in supported:
             if mtype in formats:
-                d = bytes(mimeData.data(mtype))
+                d = bytes(mimeData.data(mtype)).decode('utf-8')
                 if d is None:
                     return None
                 try:
@@ -1941,7 +1939,8 @@ class TaurusBaseWritableWidget(TaurusBaseWidget):
 
     applied = baseSignal('applied')
 
-    def __init__(self, name='', taurus_parent=None, designMode=False):
+    def __init__(self, name='', taurus_parent=None, designMode=False,
+                 **kwargs):
         self.call__init__(TaurusBaseWidget, name,
                           parent=taurus_parent, designMode=designMode)
 
