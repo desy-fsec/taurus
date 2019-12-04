@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 #############################################################################
 ##
@@ -23,20 +22,3 @@
 # along with Taurus.  If not, see <http://www.gnu.org/licenses/>.
 ##
 #############################################################################
-
-"""
-This module provides a pint unit registry instance (`UR`) to be used by all
-taurus objects. It also provides the `Quantity` factory from that registry
-(also aliased as `Q_`).
-"""
-__all__ = ['UR', 'Quantity', 'Q_']
-
-from pint import UnitRegistry
-
-# Ininitialize the unit registry for taurus
-UR = UnitRegistry()
-UR.default_format = '~'  # use abbreviated units
-Q_ = Quantity = UR.Quantity
-
-# Support degreeC
-UR.define(u'degreeC = kelvin; offset: 273.15  = °C = ºC = degC = celsius')
