@@ -44,6 +44,7 @@ from taurus.qt.qtcore.mimetypes import (TAURUS_ATTR_MIME_TYPE, TAURUS_DEV_MIME_T
 from taurus.qt.qtgui.container import TaurusWidget, TaurusScrollArea
 from taurus.qt.qtgui.button import QButtonBox, TaurusCommandButton
 from .taurusmodelchooser import TaurusModelChooser
+import taurus.cli.common
 
 __all__ = ["TaurusAttrForm", "TaurusCommandsForm", "TaurusForm"]
 
@@ -331,9 +332,10 @@ class TaurusForm(TaurusWidget):
         except:
             try:
                 obj = taurus.Device(model)
-            except:
+            except Exception as e:
                 self.warning(
-                    'Cannot handle model "%s". Using default widget.' % (model))
+                    'Cannot handle model "%s". Using default widget.', model)
+                self.debug('Model error: %s', e)
                 return self._defaultFormWidget, (), {}
             try:
                 key = obj.getDeviceProxy().info().dev_class  # TODO: Tango-centric
@@ -1048,12 +1050,9 @@ def test4():
 
 
 @click.command('form')
-@click.option('--window-name', 'window_name',
-              default='Taurus Form',
-              help='Name of the window')
-@click.option('--config', 'config_file', type=click.File('rb'),
-              help='configuration file for initialization')
-@click.argument('models', nargs=-1)
+@taurus.cli.common.window_name("TaurusForm")
+@taurus.cli.common.config_file
+@taurus.cli.common.models
 def form_cmd(window_name, config_file, models):
     """Shows a Taurus form populated with the given model names"""
     from taurus.qt.qtgui.application import TaurusApplication

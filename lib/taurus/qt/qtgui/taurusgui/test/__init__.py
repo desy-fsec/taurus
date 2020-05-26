@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #############################################################################
 ##
 # This file is part of Taurus
@@ -19,25 +21,4 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with Taurus.  If not, see <http://www.gnu.org/licenses/>.
 ##
-#############################################################################
-
-"""
-This module provides the taurus Command Line Interface
-
-It is based on the click module to provide CLI utilities.
-
-It defines a `taurus` command which can accept subcommands defined in
-other taurus submodules or even in plugins.
-
-To define a subcommand for taurus, you need to register it using the
-`taurus_subcommands` entry point via setuptools.
-
-.. todo:: add click link , add code snippet for plugins, etc.
-
-This module provides also common options/flags for command-line interfaces
-that can be used by taurus plugins. For list of available options,
-see :mod:`taurus.cli.common`
-
-"""
-
-from .cli import main, register_subcommands, taurus_cmd
+###########################################################################

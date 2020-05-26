@@ -88,9 +88,9 @@ EXTRA_SCHEME_MODULES = []
 #: The formatter can be a python format string or the name of a formatter
 #: callable, e.g.
 #: DEFAULT_FORMATTER = '{0}'
-#: DEFAULT_FORMATTER = 'taurus.core.tango.util.formatter.tangoFormatter'
+#: DEFAULT_FORMATTER = 'taurus.core.tango.util.tangoFormatter'
 #: If not defined, taurus.qt.qtgui.base.defaultFormatter will be used
-pass
+
 
 #: Default serialization mode **for the tango scheme**. Possible values are:
 #: 'Serial', 'Concurrent', or 'TangoSerial' (default)
@@ -148,6 +148,16 @@ QT_DESIGNER_PATH = None
 #: If not set, it defaults to 'logos:taurus.png" 
 #: (note that "logos:" is a Qt a registered path for "<taurus>/qt/qtgui/icon/logos/")
 ORGANIZATION_LOGO = "logos:taurus.png"
+
+#: Implicit optparse legacy support:
+#: In taurus < 4.6.5 if TaurusApplication did not receive an explicit
+#: `cmd_line_parser` keyword argument, it implicitly used a
+#: `optparse.OptionParser` instance. This was inconvenient because it forced
+#: the user to explicitly pass `cmd_line_parser=None` when using other
+#: mechanisms such as `click` or `argparse` to parse CLI options.
+#: In taurus >=4.6.5 this is no longer the case by default, but the old
+#: behaviour can be restored by setting IMPLICIT_OPTPARSE=True
+IMPLICIT_OPTPARSE = False
 
 # ----------------------------------------------------------------------------
 # Deprecation handling:
