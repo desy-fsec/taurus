@@ -30,6 +30,23 @@ The idea is that the final user may edit the values here to customize certain
 aspects of Taurus.
 """
 
+#: Widget alternatives. Some widgets may be have alternative implementations
+#: (e.g. the `TaurusPlot` is implemented both by the qwt5 submodule and by the
+#: taurus_pyqtgraph plugin). The different implementations are registered in
+#: entry point groups (`taurus.plot.alt`, `taurus.trend.alt`, ...) and they
+#: are tried in alphabetical order of their registered  entry point names
+#: (the first one that works is used). You can restrict the set of available
+#: implementation alternatives to be tried (or even just select a given
+#: alternative) by setting the corresponding *_ALT variable with a name
+#: regexp pattern that must be matched by the entry point name in order to be
+#: tried. For example, to force the `taurus_pyqtgraph` implementation for the
+#: plots, set `PLOT_ALT = "tpg"`.
+#: Leaving the variable undefined is equivalent to setting it to `".*"`
+PLOT_ALT = ".*"
+TREND_ALT = ".*"
+TREND2D_ALT = ".*"
+IMAGE_ALT = ".*"
+
 #: Default include and exclude patterns for TaurusForm item factories
 #: See `TaurusForm.setItemFactories` docs. By default, all available
 #: factories are enabled (and tried alphabetically)
@@ -43,7 +60,6 @@ T_FORM_COMPACT = False
 #: True makes Taurus only use the strict URI names
 #: False enables a backwards-compatibility mode for pre-sep3 model names
 STRICT_MODEL_NAMES = False
-
 
 #: Lightweight imports:
 #: True enables delayed imports (may break older code).
@@ -85,6 +101,14 @@ EXTRA_SCHEME_MODULES = []
 #: 'Serial', 'Concurrent', or 'TangoSerial' (default)
 TANGO_SERIALIZATION_MODE = 'TangoSerial'
 
+#: Whether TangoAttribute is subscribed to configuration events by default.
+#: Setting to True (or not setting it) makes the TangoAttribute auto-subscribe
+#: Setting to False avoids this subscription, which prevents issues such as
+#: https://github.com/taurus-org/taurus/issues/1118
+#: but it also prevents clients to be notified when configurations (e.g.,
+#: units, format) change.
+TANGO_AUTOSUBSCRIBE_CONF = True
+
 #: PLY (lex/yacc) optimization: 1=Active (default) , 0=disabled.
 #: Set PLY_OPTIMIZE = 0 if you are getting yacc exceptions while loading
 #: synoptics
@@ -97,8 +121,10 @@ NAMESPACE = 'taurus'
 # Qt configuration
 # ----------------------------------------------------------------------------
 
-#: Set preferred API (if one is not already loaded)
-DEFAULT_QT_API = 'pyqt'
+#: Set preferred API (if one is not already loaded). Accepted values are
+#: pyqt5, pyqt, pyside2, pyside. Set to an empty string to let taurus choose
+#: the first that works from the accepted values.
+DEFAULT_QT_API = ''
 
 #: Auto initialize Qt logging to python logging
 QT_AUTO_INIT_LOG = True

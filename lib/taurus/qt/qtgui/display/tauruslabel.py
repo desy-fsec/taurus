@@ -29,8 +29,12 @@ from __future__ import absolute_import
 from builtins import str
 from builtins import object
 
-import collections
+try:
+    from collections.abc import Sequence
+except ImportError:  # bck-compat py 2.7
+    from collections import Sequence
 import re
+import string
 
 from taurus.core.taurusbasetypes import (TaurusElementType, TaurusEventType,
                                          AttrQuality, TaurusDevState)
@@ -54,6 +58,20 @@ _QT_PLUGIN_INFO = {
 
 TaurusModelType = TaurusElementType
 EventType = TaurusEventType
+
+
+class _SafeFormatter(string.Formatter):
+    """
+    Like default formatter but leaves unmatched keys in the result string
+    instead of raising an exception.
+    Inspired by:
+    https://github.com/silx-kit/pyFAI/blob/0.19/pyFAI/utils/stringutil.py#L41
+    """
+    def get_field(self, field_name, args, kwargs):
+        try:
+            return string.Formatter.get_field(self, field_name, args, kwargs)
+        except KeyError:
+            return "{%s}" % field_name, field_name
 
 
 class TaurusLabelController(TaurusBaseController):
@@ -91,7 +109,10 @@ class TaurusLabelController(TaurusBaseController):
 
         # handle special cases (that are not covered with fragment)
         if fgRole.lower() == 'state':
-            value = self.state().name
+            try:
+                value = self.state().name
+            except AttributeError:
+                pass  # protect against calls with state not instantiated
         elif fgRole.lower() in ('', 'none'):
             pass
         else:
@@ -230,6 +251,7 @@ class TaurusLabel(Qt.QLabel, TaurusBaseWidget):
     _deprecatedRoles = dict(value='rvalue', w_value='wvalue')
 
     def __init__(self, parent=None, designMode=False):
+        self._safeFormatter = _SafeFormatter()
         self._prefix = self.DefaultPrefix
         self._suffix = self.DefaultSuffix
         self._permanentText = None
@@ -347,7 +369,7 @@ class TaurusLabel(Qt.QLabel, TaurusBaseWidget):
                 return
             if type(mi_value) == int:
                 mi_value = mi_value,
-            if not isinstance(mi_value, collections.Sequence):
+            if not isinstance(mi_value, Sequence):
                 return
             self._modelIndex = mi_value
         self._modelIndexStr = mi
@@ -483,6 +505,11 @@ class TaurusLabel(Qt.QLabel, TaurusBaseWidget):
         """Reset auto-trimming to its default value"""
         self.setAutoTrim(self.DefaultAutoTrim)
 
+    def resetFormat(self):
+        """reimplement to update controller if format is changed"""
+        TaurusBaseWidget.resetFormat(self)
+        self.controllerUpdate()
+
     def displayValue(self, v):
         """Reimplementation of displayValue for TaurusLabel"""
         if self._permanentText is None:
@@ -501,7 +528,7 @@ class TaurusLabel(Qt.QLabel, TaurusBaseWidget):
             dev = attr.getParent()
 
         try:
-            v = value.format(dev=dev, attr=attr)
+            v = self._safeFormatter.format(value, dev=dev, attr=attr)
         except Exception as e:
             self.warning(
                 "Error formatting display (%r). Reverting to raw string", e)

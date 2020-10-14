@@ -317,8 +317,11 @@ class TangoAttribute(TaurusAttribute):
         self._decodeAttrInfoEx(attr_info)
 
         # subscribe to configuration events (unsubscription done at cleanup)
+        auto_subscribe_conf = getattr(
+            tauruscustomsettings, "TANGO_AUTOSUBSCRIBE_CONF", True
+        )
         self.__cfg_evt_id = None
-        if self.factory().is_tango_subscribe_enabled():
+        if auto_subscribe_conf and self.factory().is_tango_subscribe_enabled():
             self._subscribeConfEvents()
 
     def __del__(self):
@@ -746,7 +749,7 @@ class TangoAttribute(TaurusAttribute):
                 else:
                     self.debug("Failed: %s", df.args[0].desc)
                     self.trace(str(df))
-        self.disablePolling()
+        self._deactivatePolling()
         self.__subscription_state = SubscriptionState.Unsubscribed
 
     def _subscribeConfEvents(self):
@@ -1101,10 +1104,10 @@ class TangoAttribute(TaurusAttribute):
         ###############################################################
         fmt = standard_display_format_from_tango(i.data_type, i.format)
         self.format_spec = fmt.lstrip('%')  # format specifier
-        match = re.search("[^\.]*\.(?P<precision>[0-9]+)[eEfFgG%]", fmt)
+        match = re.search(r"[^\.]*\.(?P<precision>[0-9]+)[eEfFgG%]", fmt)
         if match:
             self.precision = int(match.group(1))
-        elif re.match("%[0-9]*d", fmt):
+        elif re.match(r"%[0-9]*d", fmt):
             self.precision = 0
         # self._units and self._display_format is to be used by
         # TangoAttrValue for performance reasons. Do not rely on it in other
